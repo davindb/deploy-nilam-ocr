@@ -1,0 +1,9 @@
+apiVersion: v2
+name: ocr-rbac-ui
+description: NILAM OCR admin UI (RBAC) - static nginx that also proxies /v1 and /health to the backend.
+type: application
+version: 1.0.0
+appVersion: "d25f1de"
+kubeVersion: ">=1.25.0-0"
+maintainers:
+  - name: BRIBrain NILAM

@@ -1,0 +1,12 @@
+{{ include "ocr-rbac-ui.fullname" . }} {{ include "ocr-rbac-ui.tag" . }} di namespace {{ .Release.Namespace }}.
+Proxy /v1 dan /health ke: {{ include "ocr-rbac-ui.apiUpstream" . }}
+
+{{- if eq .Values.service.type "LoadBalancer" }}
+
+Alamat Admin UI (LoadBalancer, bisa butuh 1-2 menit):
+  kubectl get svc {{ include "ocr-rbac-ui.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+{{- else }}
+
+Coba lokal:
+  kubectl port-forward svc/{{ include "ocr-rbac-ui.fullname" . }} -n {{ .Release.Namespace }} 8080:{{ .Values.service.port }}
+{{- end }}

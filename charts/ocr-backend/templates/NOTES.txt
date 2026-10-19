@@ -1,0 +1,18 @@
+{{ include "ocr-backend.fullname" . }} {{ include "ocr-backend.tag" . }} di namespace {{ .Release.Namespace }}.
+
+Pod:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if eq .Values.service.type "LoadBalancer" }}
+
+Alamat API (LoadBalancer, bisa butuh 1-2 menit):
+  kubectl get svc {{ include "ocr-backend.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+{{- else }}
+
+Dari dalam cluster: http://{{ include "ocr-backend.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+{{- end }}
+
+Autoscaling:
+  kubectl get hpa -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Pod api baru Ready setelah /health bisa menjangkau database.

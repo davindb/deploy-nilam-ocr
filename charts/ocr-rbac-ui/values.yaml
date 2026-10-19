@@ -1,0 +1,112 @@
+# Defaults for every environment. Environment-specific values live in environments/<env>/ocr-rbac-ui.yaml.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  registry: new-nexus.gcp.bri.co.id
+  repository: bribrain/dev/nilam/nilam-ocr-orchestrator/ms-bribrain-nilam-ocr-rbac-ui
+  # Empty = .Chart.AppVersion. Use immutable tags (git short sha).
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: nexus-pull-secret
+
+# Where nginx proxies /v1 and /health. Must be a FQDN: nginx's own resolver ignores the resolv.conf search
+# list, so a short name fails with 502. Empty namespace = the release namespace.
+backend:
+  serviceName: ocr-orchestration
+  namespace: ""
+  port: 80
+
+extraEnv: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  # nginx user of nginxinc/nginx-unprivileged.
+  runAsUser: 101
+  runAsGroup: 101
+  fsGroup: 101
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  # nginx writes the rendered config and its temp files at startup.
+  readOnlyRootFilesystem: false
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
+podAnnotations: {}
+podLabels: {}
+
+# Ignored while autoscaling.enabled.
+replicas: 1
+port: 8080
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+preStopSleepSeconds: 5
+terminationGracePeriodSeconds: 30
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+# Static files with no dependency that can fail, so both probes hit nginx itself.
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 20
+
+service:
+  type: ClusterIP
+  port: 80
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  annotations: {}
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+  scaleDownStabilizationSeconds: 300
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+revisionHistoryLimit: 5

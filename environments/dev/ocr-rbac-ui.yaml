@@ -1,0 +1,28 @@
+# dev overrides for charts/ocr-rbac-ui. image.* comes from environments/dev.env via the scripts.
+
+fullnameOverride: ocr-admin-ui
+
+backend:
+  # fullnameOverride of environments/dev/ocr-backend.yaml.
+  serviceName: ocr-orchestration
+
+service:
+  type: LoadBalancer
+  loadBalancerIP: ""
+
+# Same node rules as the backend (see ocr-backend.yaml).
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: NotIn
+              values: ["gke-gc-ddb-dev-gke-c-gc-dgv-dev-ndp-c-42b3b8a0-l5uf"]
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: cloud.google.com/gke-nodepool
+              operator: In
+              values: ["gc-dgv-dev-ndp-cluster01-03"]

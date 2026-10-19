@@ -1,0 +1,50 @@
+# dev overrides for charts/ocr-backend. image.* and existingSecret come from environments/dev.env via the scripts.
+
+# The rbac-ui nginx proxies to this Service name.
+fullnameOverride: ocr-orchestration
+
+service:
+  type: LoadBalancer
+  # Set to a reserved static IP to keep the address across reinstalls.
+  loadBalancerIP: ""
+
+api:
+  # The dev node pool has no room for a surge pod, so a rollout would stall in Pending: stop one, then
+  # start one. Costs a short API gap per deploy; set maxSurge back to 25% once the cluster has room.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+
+worker:
+  # Jobs are not lost while the worker restarts: they wait in Redis.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+
+apm:
+  # The only port of VM gc-bribrain-dev-gce-tmp-01 open to the cluster; requires ELASTIC_APM_SECRET_TOKEN
+  # in the ocr-orchestration Secret.
+  serverUrl: "http://10.213.128.39:8200"
+  environment: "dev"
+
+# Prefer pool 03 (largest nodes) and avoid node ...-l5uf, where pods got stuck in ContainerCreating.
+# Drop the NotIn rule once that node is healthy.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: NotIn
+              values: ["gke-gc-ddb-dev-gke-c-gc-dgv-dev-ndp-c-42b3b8a0-l5uf"]
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: cloud.google.com/gke-nodepool
+              operator: In
+              values: ["gc-dgv-dev-ndp-cluster01-03"]

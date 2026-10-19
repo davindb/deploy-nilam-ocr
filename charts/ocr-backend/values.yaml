@@ -1,0 +1,178 @@
+# Defaults for every environment. Environment-specific values live in environments/<env>/ocr-backend.yaml.
+
+nameOverride: ""
+# environments/* set this to "ocr-orchestration": the rbac-ui nginx proxies to a Service of that name.
+fullnameOverride: ""
+
+image:
+  registry: new-nexus.gcp.bri.co.id
+  repository: bribrain/dev/nilam/nilam-ocr-orchestrator/ms-bribrain-nilam-ocr-orchestrator
+  # Empty = .Chart.AppVersion. Use immutable tags (git short sha), never a moving tag like "dev".
+  tag: ""
+  # Optional sha256:... digest; wins over the tag when set.
+  digest: ""
+  # IfNotPresent is safe because tags are immutable.
+  pullPolicy: IfNotPresent
+
+# Docker registry Secrets for Nexus, created by scripts/_lib.sh (ensure_pull_secret).
+imagePullSecrets:
+  - name: nexus-pull-secret
+
+# Application config (DATABASE_URL, REDIS_URL, OCR_<TYPE>_*, ...) read by api AND worker via envFrom.
+# Created outside the chart so secrets never live in values files; see README.
+existingSecret: ocr-orchestration
+
+# Plain env vars added to api and worker, e.g. [{name: LOG_LEVEL, value: INFO}].
+extraEnv: []
+
+serviceAccount:
+  create: true
+  # Empty = fullname.
+  name: ""
+  annotations: {}
+
+# Pods never call the Kubernetes API.
+automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  # appuser in the image (first useradd on python:3.11-slim). The image sets USER by name, so the kubelet
+  # needs the numeric id to verify runAsNonRoot.
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  # ponytail: writable rootfs, uploads spool to /tmp; turn on with an emptyDir /tmp once LOG_FILE is unset everywhere.
+  readOnlyRootFilesystem: false
+
+# Elastic APM. Empty serverUrl = no APM env rendered. Token/API key belong in existingSecret
+# (ELASTIC_APM_SECRET_TOKEN / ELASTIC_APM_API_KEY), never here.
+apm:
+  serverUrl: ""
+  environment: ""
+  sampleRate: "1.0"
+  # Replaces the agent's whole default list: defaults repeated, plus *signature* and *credential*
+  # (presigned URL query names).
+  sanitizeFieldNames: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,*signature*,*credential*"
+
+# Scheduling rules shared by api and worker (plain pod-spec objects).
+nodeSelector: {}
+affinity: {}
+tolerations: []
+# Soft spread over nodes, so one node loss does not take every replica.
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
+podAnnotations: {}
+podLabels: {}
+
+api:
+  # Ignored while autoscaling.api.enabled: the HPA owns replicas.
+  replicas: 1
+  port: 8100
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 0
+  # Seconds to keep serving after SIGTERM is scheduled, so the load balancer drops the pod first.
+  preStopSleepSeconds: 5
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      # No CPU limit on purpose: CFS throttling hurts p99 latency; memory stays capped because it cannot be throttled.
+      memory: 1Gi
+  # /health returns 503 when the database is unreachable: right for readiness, wrong for liveness.
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  # TCP only: restarts a hung process without restarting every pod on a database blip.
+  livenessProbe:
+    tcpSocket:
+      port: http
+    initialDelaySeconds: 20
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+service:
+  # ClusterIP by default; environments expose it with LoadBalancer.
+  type: ClusterIP
+  port: 80
+  # Reserved static IP, so the address survives a reinstall. Empty = ephemeral.
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  annotations: {}
+
+worker:
+  replicas: 1
+  command: ["arq", "src.workers.ocr_worker.WorkerSettings"]
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  # OCR jobs take tens of seconds; the 30 s default cuts them off mid-rollout and arq only retries
+  # them after its job timeout.
+  terminationGracePeriodSeconds: 120
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  # arq --check reads the worker's health-check key in Redis (written every health_check_interval,
+  # arq default 3600 s): fails when the worker stopped heartbeating or Redis is unreachable.
+  # Set to {} to disable.
+  livenessProbe:
+    exec:
+      command: ["arq", "--check", "src.workers.ocr_worker.WorkerSettings"]
+    initialDelaySeconds: 60
+    periodSeconds: 120
+    timeoutSeconds: 30
+    failureThreshold: 3
+
+autoscaling:
+  api:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    # Percent of resources.requests, not of node capacity. Requires metrics-server.
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: null
+    scaleDownStabilizationSeconds: 300
+  worker:
+    # CPU is a weak signal here: the worker mostly waits on HTTP to the OCR services, so the queue can
+    # grow while CPU stays low. Kept as a safety net; queue-length scaling needs a custom metric because
+    # arq's queue is a sorted set, which KEDA's Redis list scaler cannot read.
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: null
+    # A worker stopped mid-job is retried only after arq's job timeout, so scale down slowly.
+    scaleDownStabilizationSeconds: 600
+
+# maxUnavailable rather than minAvailable: with one replica, minAvailable: 1 would block node drains forever.
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+revisionHistoryLimit: 5
