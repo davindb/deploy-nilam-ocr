@@ -1,3 +1,21 @@
+# Rahasia lokal: jangan pernah di-commit
 .env
+.env.*
+!.env.example
+*credentials*.env
+*credentials*.json
+superadmin.env
+ocr.env
+*.pem
+*.key
+*.p12
+*.pfx
+*-sa.json
+*service-account*.json
+kubeconfig
+*.kubeconfig
+
+# Lain-lain
 *.tgz
 .DS_Store
+~$*
