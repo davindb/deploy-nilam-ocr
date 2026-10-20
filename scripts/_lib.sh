@@ -48,7 +48,7 @@ load_env_file() {
 
 load_env() {
   local env_file="$ROOT_DIR/environments/$DEPLOY_ENV.env"
-  [[ -f "$env_file" ]] || die "environment '$DEPLOY_ENV' tidak ada: $env_file"
+  [[ -f "$env_file" ]] || die "environment '$DEPLOY_ENV' tidak ada: $env_file (salin dari $env_file.example)"
   load_env_file "$ROOT_DIR/.env"
   load_env_file "$env_file"
   ENV_VALUES_DIR="$ROOT_DIR/environments/$DEPLOY_ENV"

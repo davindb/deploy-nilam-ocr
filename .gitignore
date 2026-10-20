@@ -14,6 +14,8 @@ ocr.env
 *service-account*.json
 kubeconfig
 *.kubeconfig
+# Target GKE per environment; template-nya environments/<env>.env.example
+environments/*.env
 
 # Lain-lain
 *.tgz

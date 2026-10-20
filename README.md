@@ -16,7 +16,7 @@ image di-push dari repo aplikasinya (`nilam-ocr-orchestration/deploy/push-nexus.
 
 ```
 charts/<chart>/            chart generik, tanpa nilai khusus environment
-environments/<env>.env     target GKE + path Nexus + nama release (tanpa rahasia, di-commit)
+environments/<env>.env     target GKE + path Nexus + nama release (tidak di-commit; salin dari <env>.env.example)
 environments/<env>/*.yaml  override values per chart untuk environment itu
 scripts/services/<service>/  script per service: deploy, operasi, dan probe
 scripts/                     helper bersama `_lib.sh` dan `kube.sh`
@@ -41,7 +41,11 @@ Urutan prioritas nilai: **env shell > `.env` > `environments/<env>.env`**. Value
 
 ```bash
 cp .env.example .env    # isi NEXUS_USERNAME / NEXUS_PASSWORD (akun service, bukan akun pribadi)
+cp environments/dev.env.example environments/dev.env        # isi project, cluster, host Nexus
+cp environments/shared.env.example environments/shared.env  # plus bastion
 ```
+
+`.env` dan `environments/<env>.env` di-ignore git; nilainya minta ke tim infra atau rekan yang sudah punya.
 
 Script membuat/memperbarui Secret pull `nexus-pull-secret` dari akun itu setiap deploy.
 
@@ -124,8 +128,8 @@ GKE_PROJECT=project-lain GKE_CLUSTER=cluster-lain BACKEND_NAMESPACE=ocr-test ./d
 Namespace diatur per komponen (`BACKEND_NAMESPACE`, `RBAC_UI_NAMESPACE`); admin UI otomatis diarahkan ke
 `BACKEND_NAMESPACE`.
 
-Permanen: ubah `environments/dev.env`. Environment baru (mis. `prd`): salin `environments/dev.env` ke
-`environments/prd.env` dan folder `environments/dev/` ke `environments/prd/`, ganti nilainya (termasuk
+Permanen: ubah `environments/dev.env`. Environment baru (mis. `prd`): salin `environments/dev.env.example` ke
+`environments/prd.env.example` (di-commit) dan `environments/prd.env` (lokal), folder `environments/dev/` ke `environments/prd/`, ganti nilainya (termasuk
 `NEXUS_PATH=bribrain/prd/...`), lalu `./deploy.sh ocr-backend <tag> --env prd`.
 
 ## Cluster private (env `shared`)
