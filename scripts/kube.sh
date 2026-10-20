@@ -7,7 +7,7 @@
 #
 # Contoh:
 #   ./scripts/kube.sh --env shared -- kubectl get pods -n nilam-ocr-orchestrator
-#   ./scripts/kube.sh --env shared -- kubectl logs -n nilam-ocr-orchestrator deploy/ocr-orchestration-worker -f
+#   ./scripts/kube.sh --env shared -- kubectl logs -n nilam-ocr-orchestrator deploy/ms-bribrain-nilam-ocr-orchestrator-worker -f
 #   ./scripts/kube.sh --env shared -- bash      # shell interaktif, tunnel terbuka sampai exit
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 

@@ -17,7 +17,7 @@ imagePullSecrets:
 # Where nginx proxies /v1 and /health. Must be a FQDN: nginx's own resolver ignores the resolv.conf search
 # list, so a short name fails with 502. Empty namespace = the release namespace.
 backend:
-  serviceName: ocr-orchestration
+  serviceName: ms-bribrain-nilam-ocr-orchestrator
   namespace: ""
   port: 80
 

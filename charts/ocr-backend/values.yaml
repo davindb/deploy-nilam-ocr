@@ -1,7 +1,7 @@
 # Defaults for every environment. Environment-specific values live in environments/<env>/ocr-backend.yaml.
 
 nameOverride: ""
-# environments/* set this to "ocr-orchestration": the rbac-ui nginx proxies to a Service of that name.
+# environments/* set this to the Bitbucket repo name (ms-bribrain-nilam-ocr-orchestrator): the rbac-ui nginx proxies to a Service of that name.
 fullnameOverride: ""
 
 image:

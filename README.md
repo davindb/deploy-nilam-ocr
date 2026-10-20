@@ -9,7 +9,7 @@ image di-push dari repo aplikasinya (`nilam-ocr-orchestration/deploy/push-nexus.
 | Komponen | Chart | Script | Image Nexus |
 |---|---|---|---|
 | OCR backend: api + worker (satu image) | `charts/ocr-backend` | `./deploy.sh ocr-backend` | `ms-bribrain-nilam-ocr-orchestrator` |
-| RBAC admin UI | `charts/ocr-rbac-ui` | `./deploy.sh rbac-ui` | `ms-bribrain-nilam-ocr-rbac-ui` |
+| RBAC admin UI | `charts/ocr-rbac-ui` | `./deploy.sh rbac-ui` | `mf-bribrain-nilam-ocr-admin-ui` |
 | Redis bersama untuk banyak team (env `shared`) | `charts/redis` | `./deploy.sh redis`, `scripts/services/redis/user.sh` | `redis` (salinan Docker Hub) |
 
 ## Struktur
@@ -219,17 +219,19 @@ stabilisasi 5 menit (api, UI) dan 10 menit (worker).
 
 ## Migrasi dari chart lama
 
-Chart lama (`nilam-ocr-orchestration/deploy`, release `ocr-dev` di namespace `ocr-dev`) membuat objek dengan
-nama yang sama (`ocr-orchestration`, `ocr-orchestration-api`, `-worker`, `ocr-admin-ui`) tetapi label selector
-berbeda. Helm menolak mengambil alih objek milik release lain, dan script berhenti lebih awal dengan pesan yang
-menyebut objeknya.
+Nama objek mengikuti nama repo Bitbucket (`fullnameOverride` di `environments/<env>/*.yaml`): backend
+`ms-bribrain-nilam-ocr-orchestrator` (Deployment `-api` dan `-worker`), admin UI `mf-bribrain-nilam-ocr-admin-ui`.
 
-1. **Disarankan: berdampingan di namespace baru.** `NAMESPACE=<baru>`, salin Secret `ocr-orchestration` (ganti
-   URL nama pendek ke FQDN namespace lama), deploy, uji, lalu pindahkan konsumen ke IP LoadBalancer baru dan
-   hapus Deployment/Service lama. Tanpa downtime.
-2. **Namespace yang sama.** Hapus dulu Deployment, Service, dan HPA lama milik release `ocr-dev` (bukan
-   `helm uninstall ocr-dev`, yang juga menghapus MinIO). Ada downtime, dan IP LoadBalancer berubah kecuali
-   memakai IP statis (`service.loadBalancerIP`).
+Chart lama (`nilam-ocr-orchestration/deploy`, release `ocr-dev` di namespace `ocr-dev`) memakai nama
+`ocr-orchestration`, `ocr-orchestration-api`, `-worker`, dan `ocr-admin-ui`, jadi tidak bentrok: keduanya bisa jalan
+berdampingan, juga di namespace yang sama. Deploy, uji, pindahkan konsumen ke Service/IP LoadBalancer baru, lalu
+hapus Deployment, Service, dan HPA lama milik release `ocr-dev` (bukan `helm uninstall ocr-dev`, yang juga
+menghapus MinIO). Tanpa downtime. Bila ada objek bernama sama milik release lain, script berhenti lebih awal
+dengan pesan yang menyebut objeknya.
+
+Release chart ini yang masih memakai nama lama (`ocr-orchestration`, `ocr-admin-ui`) ikut berganti nama pada
+deploy berikutnya: Helm membuat objek baru dan menghapus yang lama. FQDN Service backend dan IP LoadBalancer
+berubah kecuali memakai IP statis (`service.loadBalancerIP`).
 
 ## Standar untuk servis berikutnya
 

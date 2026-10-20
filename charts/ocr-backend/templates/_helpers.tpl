@@ -63,7 +63,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 - name: ELASTIC_APM_SERVER_URL
   value: {{ .serverUrl | quote }}
 - name: ELASTIC_APM_SERVICE_NAME
-  value: {{ printf "ocr-orchestration-%s" $component | quote }}
+  value: {{ printf "%s-%s" (include "ocr-backend.fullname" $) $component | quote }}
 - name: ELASTIC_APM_ENVIRONMENT
   value: {{ .environment | quote }}
 - name: ELASTIC_APM_TRANSACTION_SAMPLE_RATE

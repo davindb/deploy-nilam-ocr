@@ -1,7 +1,7 @@
 # dev overrides for charts/ocr-backend. image.* and existingSecret come from environments/dev.env via the scripts.
 
 # The rbac-ui nginx proxies to this Service name.
-fullnameOverride: ocr-orchestration
+fullnameOverride: ms-bribrain-nilam-ocr-orchestrator
 
 service:
   type: LoadBalancer

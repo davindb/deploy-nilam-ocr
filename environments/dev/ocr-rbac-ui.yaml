@@ -1,10 +1,10 @@
 # dev overrides for charts/ocr-rbac-ui. image.* comes from environments/dev.env via the scripts.
 
-fullnameOverride: ocr-admin-ui
+fullnameOverride: mf-bribrain-nilam-ocr-admin-ui
 
 backend:
   # fullnameOverride of environments/dev/ocr-backend.yaml.
-  serviceName: ocr-orchestration
+  serviceName: ms-bribrain-nilam-ocr-orchestrator
 
 service:
   type: LoadBalancer

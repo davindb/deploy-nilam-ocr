@@ -35,5 +35,5 @@ os.environ.update(values)
 raise SystemExit(asyncio.run(main()))'
 
 "$ROOT_DIR/scripts/kube.sh" --env shared -- kubectl exec -i \
-  -n nilam-ocr-orchestrator deploy/ocr-orchestration-api -- \
+  -n nilam-ocr-orchestrator deploy/ms-bribrain-nilam-ocr-orchestrator-api -- \
   python -c "$REMOTE_PY" < "$CREDS_FILE"
