@@ -1,0 +1,16 @@
+# shared overrides for charts/ocr-backend. image.* and existingSecret come from environments/shared.env via the
+# scripts. Chart defaults fit this cluster: pods land on the untainted pool gc-bribrain-dev-ndp-apps-cpu-01 (the
+# GPU pools are tainted), the Service stays ClusterIP like the other nilam services, and APM stays off until a
+# server reachable from this cluster is known.
+
+# The rbac-ui nginx proxies to this Service name.
+fullnameOverride: ocr-orchestration
+
+# Shared Redis user from `./scripts/services/redis/user.sh nilam-ocr --to nilam-ocr-orchestrator`. An explicit env var
+# wins over the REDIS_URL in existingSecret (envFrom), which still points at the unreachable dev VM.
+extraEnv:
+  - name: REDIS_URL
+    valueFrom:
+      secretKeyRef:
+        name: redis-nilam-ocr
+        key: REDIS_URL

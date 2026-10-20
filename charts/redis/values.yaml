@@ -1,0 +1,71 @@
+# Defaults for every environment. Environment-specific values live in environments/<env>/redis.yaml.
+#
+# One Redis shared by many teams. Each team gets its own ACL user, limited to its key prefixes and without
+# @dangerous commands; `scripts/services/redis/user.sh` creates and rotates them (README "Redis bersama").
+#
+# ponytail: one replica, no Sentinel. A restart or node drain pauses every team's Redis for the seconds the
+# pod takes to come back; data survives it through the AOF on the PVC. Move to Memorystore for HA.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  registry: new-nexus.gcp.bri.co.id
+  # docker.io/library/redis copied into Nexus (README "Redis bersama").
+  repository: bribrain/dev/nilam/nilam-ocr-orchestrator/redis
+  # Empty = .Chart.AppVersion.
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: nexus-pull-secret
+
+# Secret created outside the chart by `scripts/services/redis/user.sh`: users.acl (ACL file, password hashes only) and
+# ADMIN_PASSWORD (for ACL LOAD). The file must define the default user, or Redis falls back to an open one.
+existingSecret: shared-redis-acl
+
+podSecurityContext:
+  runAsNonRoot: true
+  # redis user of the official image.
+  runAsUser: 999
+  runAsGroup: 999
+  fsGroup: 999
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  # Redis writes only to /data.
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+podAnnotations: {}
+
+port: 6379
+
+# Queues (arq and the like) store pending work as keys with a TTL, so any eviction policy could drop jobs:
+# refuse writes when full instead. Teams caching data must set a TTL on every cache key.
+maxmemory: 1gb
+maxmemoryPolicy: noeviction
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    # Headroom above maxmemory for AOF rewrites and client buffers.
+    memory: 1536Mi
+
+persistence:
+  enabled: true
+  # Empty uses the cluster default; environments can override it when node storage requires another disk type.
+  storageClass: ""
+  size: 5Gi
+
+terminationGracePeriodSeconds: 30

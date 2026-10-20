@@ -1,0 +1,9 @@
+apiVersion: v2
+name: redis
+description: Single-node Redis shared by many teams, one ACL user per team, AOF persistence.
+type: application
+version: 1.0.0
+appVersion: "7.4.7-alpine"
+kubeVersion: ">=1.25.0-0"
+maintainers:
+  - name: BRIBrain NILAM

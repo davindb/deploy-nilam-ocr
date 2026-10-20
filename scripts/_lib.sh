@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for scripts/deploy-*.sh. Sourced, not run.
+# Shared helpers for service and cluster scripts. Sourced, not run.
 #
 # Value precedence: shell env > .env (secrets, not committed) > environments/<env>.env.
 set -euo pipefail
@@ -52,7 +52,7 @@ load_env() {
   load_env_file "$ROOT_DIR/.env"
   load_env_file "$env_file"
   ENV_VALUES_DIR="$ROOT_DIR/environments/$DEPLOY_ENV"
-  require GKE_PROJECT GKE_REGION GKE_CLUSTER NAMESPACE NEXUS_REGISTRY NEXUS_PATH PULL_SECRET
+  require GKE_PROJECT GKE_REGION GKE_CLUSTER NEXUS_REGISTRY NEXUS_PATH PULL_SECRET
 }
 
 require() {
@@ -68,15 +68,60 @@ need_tools() {
   [[ -z "$missing" ]] || die "perkakas belum terpasang:$missing"
 }
 
+# Each run gets its own kubeconfig: ~/.kube/config is never read or changed, and a tunnel's proxy-url
+# never leaks into it.
 gke_connect() {
-  local imp=()
-  [[ -n "${IMPERSONATE_SA:-}" ]] && imp=(--impersonate-service-account="$IMPERSONATE_SA")
+  local opts=(--region "$GKE_REGION" --project "$GKE_PROJECT")
+  [[ -n "${IMPERSONATE_SA:-}" ]] && opts+=(--impersonate-service-account="$IMPERSONATE_SA")
+  [[ -n "${GKE_BASTION:-}" ]] && opts+=(--internal-ip)
+  WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/deploy-ocr.XXXXXX")"
+  trap cleanup EXIT
+  export KUBECONFIG="$WORK_DIR/kubeconfig"
   log "kredensial GKE $GKE_CLUSTER ($GKE_PROJECT, $GKE_REGION)"
-  gcloud container clusters get-credentials "$GKE_CLUSTER" \
-    --region "$GKE_REGION" --project "$GKE_PROJECT" ${imp[@]+"${imp[@]}"} >/dev/null 2>&1 \
+  gcloud container clusters get-credentials "$GKE_CLUSTER" "${opts[@]}" >/dev/null 2>&1 \
     || die "get-credentials gagal; cek 'gcloud auth login' dan akses ke project $GKE_PROJECT"
-  # Explicit context on every call, so a later `kubectl config use-context` elsewhere cannot redirect a deploy.
   KUBE_CONTEXT="gke_${GKE_PROJECT}_${GKE_REGION}_${GKE_CLUSTER}"
+  [[ -z "${GKE_BASTION:-}" ]] || open_tunnel
+}
+
+# Private control plane: SOCKS tunnel over IAP through a bastion inside its authorized networks.
+open_tunnel() {
+  local port attempt i
+  require GKE_BASTION_ZONE
+  # IAP + sshd on the bastion usually answer in ~5s but now and then hang in the banner exchange; a fresh
+  # attempt gets through.
+  for attempt in 1 2 3; do
+    port=$((20000 + RANDOM % 10000))
+    log "tunnel lewat bastion $GKE_BASTION (IAP, localhost:$port, percobaan $attempt)"
+    gcloud compute ssh "$GKE_BASTION" --zone "$GKE_BASTION_ZONE" --project "${GKE_BASTION_PROJECT:-$GKE_PROJECT}" \
+      --tunnel-through-iap --quiet -- -N -D "127.0.0.1:$port" \
+      -o ExitOnForwardFailure=yes -o BatchMode=yes -o ServerAliveInterval=30 >"$WORK_DIR/tunnel.log" 2>&1 &
+    TUNNEL_PID=$!
+    for i in $(seq 25); do
+      if nc -z 127.0.0.1 "$port" 2>/dev/null; then
+        kubectl config set "clusters.$KUBE_CONTEXT.proxy-url" "socks5://127.0.0.1:$port" >/dev/null
+        return 0
+      fi
+      kill -0 "$TUNNEL_PID" 2>/dev/null || break
+      sleep 1
+    done
+    close_tunnel
+  done
+  die "tunnel ke $GKE_BASTION gagal 3 kali: $(tail -1 "$WORK_DIR/tunnel.log")"
+}
+
+close_tunnel() {
+  # gcloud does not take its ssh child down with it.
+  [[ -n "${TUNNEL_PID:-}" ]] || return 0
+  pkill -P "$TUNNEL_PID" 2>/dev/null || true
+  kill "$TUNNEL_PID" 2>/dev/null || true
+  wait "$TUNNEL_PID" 2>/dev/null || true
+  TUNNEL_PID=""
+}
+
+cleanup() {
+  close_tunnel
+  rm -rf "${WORK_DIR:-}"
 }
 
 kc() { kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" "$@"; }
@@ -169,5 +214,5 @@ deploy_component() {
   log "helm upgrade --install $release"
   helm --kube-context "$KUBE_CONTEXT" upgrade --install "$release" "${HELM_ARGS[@]}" \
     -n "$NAMESPACE" --wait --timeout "${HELM_TIMEOUT:-10m}" --history-max 10 "$(rollback_flag)"
-  log "selesai: $release $TAG. Rollback: helm --kube-context $KUBE_CONTEXT rollback $release -n $NAMESPACE"
+  log "selesai: $release $TAG. Rollback: jalankan script ini lagi dengan tag sebelumnya"
 }

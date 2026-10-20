@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "redis.fullname" . }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ include "redis.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "redis.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "redis.labels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: redis
+          image: {{ include "redis.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --port
+            - {{ .Values.port | quote }}
+            - --dir
+            - /data
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - {{ .Values.maxmemory | quote }}
+            - --maxmemory-policy
+            - {{ .Values.maxmemoryPolicy }}
+            - --aclfile
+            - /etc/redis/users.acl
+          env:
+            # For `ACL LOAD` by `scripts/services/redis/user.sh` after it changes the ACL file.
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingSecret wajib: Secret ACL dari scripts/services/redis/user.sh" .Values.existingSecret }}
+                  key: ADMIN_PASSWORD
+          ports:
+            - name: redis
+              containerPort: {{ .Values.port }}
+              protocol: TCP
+          # The default user may only PING, so the probe needs no password.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli -p {{ .Values.port }} ping | grep -q PONG"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: acl
+              mountPath: /etc/redis
+              readOnly: true
+      volumes:
+        - name: acl
+          secret:
+            secretName: {{ .Values.existingSecret }}
+            items:
+              - key: users.acl
+                path: users.acl
+            defaultMode: 0440
+        {{- if not .Values.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "redis.selectorLabels" . | nindent 10 }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+  {{- end }}

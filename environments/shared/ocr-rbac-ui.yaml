@@ -1,0 +1,7 @@
+# shared overrides for charts/ocr-rbac-ui. image.* and backend.namespace come from environments/shared.env via
+# the scripts; backend.serviceName keeps the chart default, the fullnameOverride of shared/ocr-backend.yaml.
+
+fullnameOverride: ocr-admin-ui
+service:
+  type: LoadBalancer
+  loadBalancerIP: ""

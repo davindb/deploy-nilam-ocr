@@ -1,0 +1,3 @@
+# The shared cluster's N4 nodes require Hyperdisk; the default standard-rwo (pd-balanced) cannot attach.
+persistence:
+  storageClass: redis-hyperdisk-balanced
