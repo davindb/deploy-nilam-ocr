@@ -9,10 +9,10 @@
 # service: orchestrator, extraction, guardrails, structuring, scoring
 #
 # Contoh:
-#   ./deploy.sh ocr-akta-extraction eab7fc7
-#   ./deploy.sh ocr-akta-extraction eab7fc7 --dry-run          # render manifest saja, tanpa cluster
-#   ./deploy.sh ocr-akta-structuring eab7fc7 --env shared      # cluster shared, lewat bastion
-#   AKTA_NAMESPACE=nilam-ocr-akta-test ./deploy.sh ocr-akta-scoring eab7fc7
+#   ./deploy.sh ocr-akta-extraction 7278748
+#   ./deploy.sh ocr-akta-extraction 7278748 --dry-run          # render manifest saja, tanpa cluster
+#   ./deploy.sh ocr-akta-structuring 7278748 --env shared      # cluster shared, lewat bastion
+#   AKTA_NAMESPACE=nilam-ocr-akta-test ./deploy.sh ocr-akta-scoring 7278748
 source "$(dirname "${BASH_SOURCE[0]}")/../../_lib.sh"
 
 AKTA_SERVICES="orchestrator extraction guardrails structuring scoring"
