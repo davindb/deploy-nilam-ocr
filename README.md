@@ -232,6 +232,7 @@ lewat `envFrom`: tiap pod hanya memasang key miliknya (`services.<service>.secre
 | `API_KEYS` | kelimanya; key lain yang masih diterima selama rotasi, dipisah koma | tidak |
 | `DATABASE_URL` | kelimanya: `postgresql+asyncpg://<user>:<password>@<ip privat>:5432/<db>`, schema `nilam_ocr_akta` | ya |
 | `LLM_AUTH_CLIENT_SECRET` | structuring | ya (`STRUCTURING_BACKEND=cloud`) |
+| `CACHE_URL` | structuring: cache prompt di Redis bersama, `REDIS_URL` user ACL akta (lihat di bawah). Tanpa key ini tiap pod memakai cache di dalam prosesnya | tidak |
 | `ORCHESTRATION_CALLBACK_KEY`, `ORCHESTRATION_API_KEY` | keempat tahap, hanya bila callback dinyalakan | tidak |
 | `ELASTIC_APM_SECRET_TOKEN`, `ELASTIC_APM_API_KEY` | kelimanya, hanya bila `apm.serverUrl` diisi | tidak |
 
@@ -249,6 +250,14 @@ Secret dibaca saat pod start: setelah isinya berubah, `kubectl rollout restart` 
 - Empat `LLM_AUTH_*` structuring (bukan rahasia) di `environments/<env>/ocr-akta.yaml`. Selama kosong, render
   structuring gagal dengan pesan yang menyebut key-nya, termasuk `--dry-run`.
 - `FILE_URL_ALLOWED_HOSTS`: host MinIO yang boleh dipakai `file_url`. Kosong = hanya host publik.
+- Redis cache prompt (opsional): user ACL dengan pola key `nilam_ocr_akta:*`, karena key cache-nya
+  `nilam_ocr_akta:nilam_system_prompt:active` (selalu ber-TTL, `PROMPT_CACHE_TTL_SECONDS`). User dengan pola lain
+  ditolak Redis (`NOPERM`); structuring tetap jalan tapi membaca prompt dari database di setiap job.
+  `REDIS_URL` dari Secret hasilnya jadi `CACHE_URL` di `nilam-ocr-akta-secrets`:
+
+  ```bash
+  ./scripts/services/redis/user.sh nilam-ocr-akta --env shared --to bribrain-ocr-nilam --keys 'nilam_ocr_akta:*'
+  ```
 - Pod menjangkau PaddleOCR PP-StructureV3 `http://10.213.191.187:5000/predict/json`, bukan PP-OCRv6
   `10.213.128.67:8070` milik NPWP, serta identity provider dan LLM (`ap-southeast-3`) untuk structuring.
 

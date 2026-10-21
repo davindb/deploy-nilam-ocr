@@ -285,6 +285,10 @@ services:
       - name: ORCHESTRATION_API_KEY
         optional: true
       - name: LLM_AUTH_CLIENT_SECRET
+      # Prompt cache in the shared Redis: REDIS_URL of the team's ACL user (scripts/services/redis/user.sh), whose
+      # key pattern must allow nilam_ocr_akta:*. Absent = a cache inside each pod.
+      - name: CACHE_URL
+        optional: true
     env:
       # `cloud`: outside ENVIRONMENT=local structuring refuses to start without the four LLM_AUTH_* below plus
       # LLM_AUTH_CLIENT_SECRET. `http` (a model hosted directly): LLM_URL and LLM_MODEL only.
@@ -299,9 +303,8 @@ services:
       # LLM attempts per segment, merged by majority vote (production = 3).
       EXTRACTION_ATTEMPTS: "3"
       STRUCTURING_SEGMENT_WORKERS: "4"
-      # Prompts (nilam_system_prompt) are read per job through a cache. Empty = a cache inside each pod; a
+      # Prompts (nilam_system_prompt) are read per job through a cache (CACHE_URL, from the Secret above); a
       # changed prompt takes effect after the TTL without a restart.
-      CACHE_URL: ""
       PROMPT_CACHE_TTL_SECONDS: "300"
       PIPELINE_DRAIN_TIMEOUT_SECONDS: "120"
       PIPELINE_OUTBOX: "true"
