@@ -23,8 +23,10 @@ orchestration:
 
 # Object names = Bitbucket repo = Nexus image (deployment guide 4.5), like ms-bribrain-nilam-ocr-npwp-* next door.
 # HPA off and one replica each, like the other services of this namespace. Total requests 2.75 CPU / 11Gi
-# (see charts/ocr-akta/values.yaml): WAITING for the team's resource share.
+# (see charts/ocr-akta/values.yaml), within the namespace quota raised on 2026-10-23.
 # maxSurge 0: a rollout never reserves a pod above the share; the service is down while the new pod starts.
+# CPU limit = request here only: the namespace ResourceQuota (resource-bribrain-ocr-nilam) counts limits.cpu and
+# rejects any pod without one ("must specify limits.cpu"). The chart default stays without a CPU limit.
 services:
   orchestrator:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-orchestrator
@@ -33,9 +35,15 @@ services:
       rollingUpdate:
         maxSurge: 0
         maxUnavailable: 1
+    resources:
+      limits:
+        cpu: 250m
   extraction:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-extraction
     strategy: *stopThenStart
+    resources:
+      limits:
+        cpu: "1"
     env:
       # PaddleOCR PP-StructureV3, the engine of the corpus and every akta model. NOT 10.213.128.67:8070 (PP-OCRv6
       # of NPWP). Passed end-to-end from the BRI network on 2026-10-21; check it is reachable from the pods.
@@ -43,17 +51,26 @@ services:
   guardrails:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-guardrails
     strategy: *stopThenStart
+    resources:
+      limits:
+        cpu: "1"
   structuring:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-structuring
     strategy: *stopThenStart
+    resources:
+      limits:
+        cpu: 250m
     env:
       # FILL IN before the first deploy (structuring refuses to start without them): not secrets, the same values
       # as the services/structuring/.env that already runs on the VM. LLM_AUTH_CLIENT_SECRET is in the Secret.
       # Egress to the identity provider and the LLM region (ap-southeast-3) must be open from this cluster.
-      LLM_AUTH_TENANT_ID: ""
-      LLM_AUTH_CLIENT_ID: ""
-      LLM_AUTH_BRIDGE_ROLE: ""
-      LLM_AUTH_TARGET_ROLE: ""
+      LLM_AUTH_TENANT_ID: "76795979-244b-45d7-b043-ae27e60f46ee"
+      LLM_AUTH_CLIENT_ID: "5d46930c-300f-434f-aa2a-059811315624"
+      LLM_AUTH_BRIDGE_ROLE: "arn:aws:iam::061039788626:role/aw-alia-dev-irl-bridge-dai"
+      LLM_AUTH_TARGET_ROLE: "arn:aws:iam::690081480327:role/aw-alia-dev-irl-bedrock-oidc"
   scoring:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-scoring
     strategy: *stopThenStart
+    resources:
+      limits:
+        cpu: 250m

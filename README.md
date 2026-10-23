@@ -278,7 +278,8 @@ Perilaku yang perlu diketahui:
   `GET /v1/extract-ocr/{request_id}` di orchestrator akta. Untuk callback, isi `orchestration.url` dan
   `callbackEnabled: true` (+ `ORCHESTRATION_CALLBACK_KEY` di Secret).
 - HPA mati, satu replika per service, `maxSurge: 0`: rollout tidak memesan pod di atas jatah, jadi service mati
-  sebentar selama pod baru menyala. Total request 2,75 CPU / 11 Gi; memory limit = request, tanpa CPU limit.
+  sebentar selama pod baru menyala. Total request 2,75 CPU / 11 Gi; memory limit = request. Bawaan chart tanpa CPU limit; di `shared`
+  CPU limit = request, karena ResourceQuota namespace menolak pod tanpa `limits.cpu`.
 - extraction dan guardrails: satu job per pod (`PIPELINE_MAX_CONCURRENT_JOBS=1`) dan satu thread torch per CPU
   request. Kapasitas ditambah lewat replika (`autoscaling` per service), bukan job per pod.
 - Startup probe memberi waktu muat model (extraction 6 menit, guardrails 10 menit); readiness `/ready`, liveness
