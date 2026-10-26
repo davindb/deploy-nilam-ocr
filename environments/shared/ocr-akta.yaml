@@ -78,6 +78,9 @@ services:
       # boto3 read HTTPS_PROXY), as for slip gaji. The proxy refuses bedrock-runtime and passes bedrock-mantle, so the
       # model answers through Mantle (needs the image with the Mantle fallback). NO_PROXY keeps the Service calls, DB,
       # Redis and GCS (Private Google Access) direct.
+      # Prompt cache on the central orchestrator's Redis (nilam-ocr-redis, user nilam-ocr: ocr:* only), as SPR
+      # (ocr:prompt:spr), SHM and mutasi. CACHE_URL is in the Secret. Needs the image 6aa982d or later.
+      STRUCTURING_PROMPT_REDIS_KEY: ocr:prompt:akta
       HTTPS_PROXY: http://10.213.196.4:1707
       NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local,ms-bribrain-nilam-ocr-akta-scoring,10.213.193.3,169.254.169.254,metadata.google.internal,.googleapis.com
       LLM_AUTH_TENANT_ID: "76795979-244b-45d7-b043-ae27e60f46ee"
