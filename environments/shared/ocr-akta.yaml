@@ -64,6 +64,12 @@ services:
       # FILL IN before the first deploy (structuring refuses to start without them): not secrets, the same values
       # as the services/structuring/.env that already runs on the VM. LLM_AUTH_CLIENT_SECRET is in the Secret.
       # Egress to the identity provider and the LLM region (ap-southeast-3) must be open from this cluster.
+      # The cluster has no direct internet: Entra ID, STS and Bedrock go through the BRI egress proxy (requests and
+      # boto3 read HTTPS_PROXY), as for slip gaji. The proxy refuses bedrock-runtime and passes bedrock-mantle, so the
+      # model answers through Mantle (needs the image with the Mantle fallback). NO_PROXY keeps the Service calls, DB,
+      # Redis and GCS (Private Google Access) direct.
+      HTTPS_PROXY: http://10.213.196.4:1707
+      NO_PROXY: localhost,127.0.0.1,.svc,.cluster.local,ms-bribrain-nilam-ocr-akta-scoring,10.213.193.3,169.254.169.254,metadata.google.internal,.googleapis.com
       LLM_AUTH_TENANT_ID: "76795979-244b-45d7-b043-ae27e60f46ee"
       LLM_AUTH_CLIENT_ID: "5d46930c-300f-434f-aa2a-059811315624"
       LLM_AUTH_BRIDGE_ROLE: "arn:aws:iam::061039788626:role/aw-alia-dev-irl-bridge-dai"
