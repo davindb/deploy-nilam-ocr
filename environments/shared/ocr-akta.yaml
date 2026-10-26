@@ -11,9 +11,9 @@
 commonEnv:
   # Load tests of the ML team through kubectl port-forward to the orchestrator (/v1/extract-ocr-test).
   TESTING_ENDPOINTS: "true"
-  # Hosts of the presigned MinIO URLs the orchestrator downloads (file_url). FILL IN before the first deploy:
-  # empty = only public hosts, so every internal MinIO URL is refused.
-  FILE_URL_ALLOWED_HOSTS: ""
+  # Hosts of the presigned MinIO URLs downloaded by the orchestrator and again by extraction (file_url); empty =
+  # only public addresses, and minio.dev.bri.co.id resolves to a private one. Same list as KK next door.
+  FILE_URL_ALLOWED_HOSTS: minio.dev.bri.co.id,34.101.120.81
 
 # Elastic APM of this namespace, the stack NPWP, SK kerja and slip gaji already send to (its NetworkPolicy admits
 # every pod of the namespace). serviceName empty = one per Deployment (ms-bribrain-nilam-ocr-akta-<service>), as
