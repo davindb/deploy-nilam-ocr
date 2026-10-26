@@ -1,8 +1,8 @@
 # shared overrides for charts/ocr-akta, all five akta services (one release each; the deploy script picks one with
 # --set component=<service>). image.*, component and existingSecret come from environments/shared.env via the
 # scripts. Namespace bribrain-ocr-nilam (the nilam quota is used up), shared with NPWP and SPR. Pods land on the
-# untainted pool, Services stay ClusterIP like the other nilam services, and APM stays off until apm.serverUrl
-# below is filled in.
+# untainted pool, Services stay ClusterIP like the other nilam services, and APM goes to the namespace APM
+# server (apm below).
 #
 # Database: a plain DATABASE_URL (postgresql+asyncpg://<user>:<password>@<private ip>:5432/<db>, schema
 # nilam_ocr_akta) in the akta Secret, no Cloud SQL connector. The akta tables must exist before the first deploy.
@@ -15,15 +15,15 @@ commonEnv:
   # empty = only public hosts, so every internal MinIO URL is refused.
   FILE_URL_ALLOWED_HOSTS: ""
 
-# Elastic APM of this namespace (the stack NPWP already sends to). FILL IN to turn it on: serverUrl, and if the
-# defaults do not fit, serviceName (empty = one per Deployment, as NPWP), environment (empty = ENVIRONMENT) and
-# ignoreUrls. ELASTIC_APM_SECRET_TOKEN goes into the akta Secret (README, "Secret aplikasi akta"), never here; without it the
-# APM server answers 401 and the services run on, sending nothing. Body, headers and local variables stay off
-# (pinned by the chart).
+# Elastic APM of this namespace, the stack NPWP, SK kerja and slip gaji already send to (its NetworkPolicy admits
+# every pod of the namespace). serviceName empty = one per Deployment (ms-bribrain-nilam-ocr-akta-<service>), as
+# NPWP; environment dev, as the others. ELASTIC_APM_SECRET_TOKEN goes into the akta Secret (README, "Secret
+# aplikasi akta"), never here; without it the APM server answers 401 and the services run on, sending nothing.
+# Body, headers and local variables stay off (pinned by the chart).
 apm:
-  serverUrl: ""
+  serverUrl: http://ms-bribrain-nilam-elastic-apm-server.bribrain-ocr-nilam.svc.cluster.local:8200
   serviceName: ""
-  environment: ""
+  environment: dev
 
 # Poll mode, as NPWP on this cluster: the central orchestrator reads GET /v1/extract-ocr/{request_id}. Its dev
 # address is in the ddb cluster, not reachable from here; set url and callbackEnabled: true once a path exists.
