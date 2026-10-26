@@ -62,12 +62,18 @@ orchestration:
 
 # Elastic APM. Empty serverUrl = no APM env rendered and the agent is not loaded. Token/API key belong in
 # existingSecret (ELASTIC_APM_SECRET_TOKEN / ELASTIC_APM_API_KEY, both optional), never here. The services never
-# send request bodies, headers or local variables (akta text, names, API keys).
+# send request bodies, headers or local variables (akta text, names, API keys): the chart pins
+# ELASTIC_APM_CAPTURE_BODY, _CAPTURE_HEADERS, _COLLECT_LOCAL_VARIABLES and _CENTRAL_CONFIG after every other env,
+# because the agent lets env, and Kibana's central config, override what the code sets.
 apm:
   serverUrl: ""
+  # Empty = fullname, one APM service per Deployment (ms-bribrain-nilam-ocr-akta-<service>).
+  serviceName: ""
   # Empty = ENVIRONMENT.
   environment: ""
   sampleRate: "1.0"
+  # Probes and API docs: no transaction for them.
+  ignoreUrls: /health,/ready,/metrics,/docs,/redoc,/openapi.json
 
 serviceAccount:
   create: true

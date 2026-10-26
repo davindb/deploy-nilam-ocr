@@ -287,6 +287,26 @@ Perilaku yang perlu diketahui:
   pod lain setelah lease 300 detik.
 - Root filesystem read-only; service hanya menulis ke `/tmp` (emptyDir, juga `HOME`).
 
+### Elastic APM
+
+Agen APM sudah ada di image (`libs/ocr_common/ocr_common/web/apm.py` di `nilam-ocr-akta`) dan tidak dimuat selama
+`apm.serverUrl` kosong. Untuk menyalakan: isi `apm.serverUrl` (server APM namespace yang sama, port 8200) di
+`environments/<env>/ocr-akta.yaml`, simpan `ELASTIC_APM_SECRET_TOKEN` di `nilam-ocr-akta-secrets`, lalu deploy
+ulang kelimanya. Tanpa token server APM menolak (401): service tetap jalan, datanya saja yang tidak masuk.
+
+| Values | Env | Bawaan |
+|---|---|---|
+| `apm.serverUrl` | `ELASTIC_APM_SERVER_URL` | kosong = APM mati |
+| `apm.serviceName` | `ELASTIC_APM_SERVICE_NAME` | nama Deployment (`ms-bribrain-nilam-ocr-akta-<service>`) |
+| `apm.environment` | `ELASTIC_APM_ENVIRONMENT` | `environment` |
+| `apm.sampleRate` | `ELASTIC_APM_TRANSACTION_SAMPLE_RATE` | `1.0` |
+| `apm.ignoreUrls` | `ELASTIC_APM_TRANSACTION_IGNORE_URLS` | `/health,/ready,/metrics,/docs,/redoc,/openapi.json` |
+| tetap, tidak bisa ditimpa | `ELASTIC_APM_CAPTURE_BODY=off`, `ELASTIC_APM_CAPTURE_HEADERS=false`, `ELASTIC_APM_COLLECT_LOCAL_VARIABLES=off`, `ELASTIC_APM_CENTRAL_CONFIG=false` | |
+
+Empat yang tetap dirender chart sesudah `commonEnv` dan `services.<service>.env`: agen membaca env lebih dulu dari
+config di kode, dan central config membuat Kibana bisa menyalakan `capture_body` dari jauh. Isi akta (nama,
+pemegang saham, nomor akta) dan API key tidak boleh sampai ke APM.
+
 Validasi lokal (lint per service, karena `component` wajib):
 
 ```bash

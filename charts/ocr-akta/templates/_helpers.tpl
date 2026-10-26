@@ -64,7 +64,8 @@ app.kubernetes.io/component: {{ include "ocr-akta.component" . }}
 
 {{/*
 Plain env of the rendered service, as a name -> value dict in YAML. Later entries win: built-ins, orchestration
-(pipeline stages), APM, URLs of the upstreams, commonEnv, services.<name>.env. Empty values are dropped.
+(pipeline stages), APM, URLs of the upstreams, commonEnv, services.<name>.env, then the APM privacy keys, which
+nothing overrides. Empty values are dropped.
 */}}
 {{- define "ocr-akta.envMap" -}}
 {{- $component := include "ocr-akta.component" . }}
@@ -82,9 +83,10 @@ Plain env of the rendered service, as a name -> value dict in YAML. Later entrie
 {{- with .Values.apm }}
 {{- if .serverUrl }}
 {{- $_ := set $env "ELASTIC_APM_SERVER_URL" .serverUrl }}
-{{- $_ := set $env "ELASTIC_APM_SERVICE_NAME" (include "ocr-akta.fullname" $) }}
+{{- $_ := set $env "ELASTIC_APM_SERVICE_NAME" (.serviceName | default (include "ocr-akta.fullname" $)) }}
 {{- $_ := set $env "ELASTIC_APM_ENVIRONMENT" (.environment | default $.Values.environment) }}
 {{- $_ := set $env "ELASTIC_APM_TRANSACTION_SAMPLE_RATE" (.sampleRate | toString) }}
+{{- $_ := set $env "ELASTIC_APM_TRANSACTION_IGNORE_URLS" .ignoreUrls }}
 {{- end }}
 {{- end }}
 {{- range $svc.upstreams }}
@@ -96,6 +98,14 @@ Plain env of the rendered service, as a name -> value dict in YAML. Later entrie
 {{- end }}
 {{- range $key, $value := $svc.env }}
 {{- $_ := set $env $key ($value | toString) }}
+{{- end }}
+{{- if .Values.apm.serverUrl }}
+{{- /* Last, so commonEnv / services.<name>.env cannot turn them on: the agent reads env before the code's config,
+and central config lets Kibana switch capture_body on remotely. */}}
+{{- $_ := set $env "ELASTIC_APM_CAPTURE_BODY" "off" }}
+{{- $_ := set $env "ELASTIC_APM_CAPTURE_HEADERS" "false" }}
+{{- $_ := set $env "ELASTIC_APM_COLLECT_LOCAL_VARIABLES" "off" }}
+{{- $_ := set $env "ELASTIC_APM_CENTRAL_CONFIG" "false" }}
 {{- end }}
 {{- range $key, $value := $env }}
 {{- if ne $value "" }}
