@@ -77,6 +77,17 @@ spec:
               containerPort: {{ $svc.port }}
               protocol: TCP
           env:
+            # First: Kubernetes only expands $(NAME) in a value when NAME is defined earlier in the list.
+            {{- range $svc.externalSecretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "externalSecretEnv[].secret is required" .secret }}
+                  key: {{ .key | default .name }}
+                  {{- if .optional }}
+                  optional: true
+                  {{- end }}
+            {{- end }}
             {{- range $name, $value := $env }}
             - name: {{ $name }}
               value: {{ $value | quote }}

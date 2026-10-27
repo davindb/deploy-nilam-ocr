@@ -136,6 +136,8 @@ revisionHistoryLimit: 5
 #   pipeline         : one of the four asynchronous stages (gets the orchestration.* env).
 #   upstreams        : services it calls; the chart sets <NAME>_SERVICE_URL for each.
 #   secretEnv        : keys of existingSecret mounted as env vars of the same name (secretKeyRef), {name, optional}.
+#   externalSecretEnv: keys of another team's Secret, {name, secret, key, optional}; rendered before env, so an env
+#                      value may reference them as $(NAME) (e.g. an X-API-Key header of a service owned by others).
 #   env              : plain env vars, over commonEnv.
 #   startupFailureThreshold : startup probe tries, 2 s apart, before the kubelet restarts a pod still loading.
 # Resources: no CPU limit on purpose (CFS throttling hurts latency); memory stays capped because it cannot be
