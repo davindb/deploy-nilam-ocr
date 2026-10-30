@@ -75,7 +75,7 @@ services:
     strategy: *stopThenStart
     resources:
       limits:
-        cpu: 250m
+        cpu: "1"
     env:
       # FILL IN before the first deploy (structuring refuses to start without them): not secrets, the same values
       # as the services/structuring/.env that already runs on the VM. LLM_AUTH_CLIENT_SECRET is in the Secret.

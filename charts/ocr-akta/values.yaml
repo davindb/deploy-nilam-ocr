@@ -163,6 +163,9 @@ services:
     env:
       # Wait for the pipeline before answering 202; 0 = do not wait. Akta takes minutes: 202 is the norm.
       PIPELINE_WAIT_SECONDS: "15"
+      # While waiting, each stage's job is read once per interval. 0.5 s took ~87% of the orchestrator's CPU
+      # (44 ms CPU per request against 11.7 ms at 2 s, local load test at 10 RPS, 2026-10-30).
+      PIPELINE_POLL_INTERVAL_SECONDS: "2"
     replicas: 1
     autoscaling:
       enabled: false
@@ -185,12 +188,14 @@ services:
       limits:
         memory: 1Gi
 
-  # Stage 1: render at 300 DPI, PaddleOCR per page, image metrics, DiT (torch).
+  # Stage 1: render at 300 DPI, PaddleOCR per page, image metrics, DiT, page signals (blank / OCR lost / blur) (torch).
   extraction:
     fullnameOverride: ""
     port: 8030
     pipeline: true
-    upstreams: [guardrails]
+    # structuring: where the job goes when pipeline_name_sequence leaves guardrails out (v2). Without its address
+    # extraction refuses to start outside ENVIRONMENT=local.
+    upstreams: [guardrails, structuring]
     secretEnv: &stageSecrets
       - name: API_KEY
       - name: API_KEYS
@@ -210,6 +215,10 @@ services:
       EXTRACTION_OCR_CONCURRENCY: "1"
       # One job per pod: a job's peak is set by its largest page; capacity = replicas.
       PIPELINE_MAX_CONCURRENT_JOBS: "1"
+      # Jobs accepted and not finished per pod (running + waiting); one more is refused 503 PIPELINE_BUSY before it
+      # is recorded, so the same request_id may be sent again. A waiting job holds its upload (up to 50 MB):
+      # 20 x 50 MB = 1 GB above a job's 3.4 GB peak in 6Gi.
+      PIPELINE_MAX_PENDING_JOBS: "20"
       EXTRACTION_ENCODER_BACKEND: dit
       EXTRACTION_DEVICE: cpu
       # = resources.requests.cpu; without it torch starts as many threads as the node has cores.
@@ -276,7 +285,8 @@ services:
       limits:
         memory: 3Gi
 
-  # Stage 3: lintasan B (LLM) per segment, in parallel. Egress to the identity provider and the LLM.
+  # Stage 3: cuts the document into segments itself (E5 + segment model, torch), then lintasan B (LLM) per segment,
+  # in parallel. Egress to the identity provider and the LLM.
   structuring:
     fullnameOverride: ""
     port: 8032
@@ -314,6 +324,12 @@ services:
       # Prompts (nilam_system_prompt) are read per job through a cache (CACHE_URL, from the Secret above); a
       # changed prompt takes effect after the TTL without a restart.
       PROMPT_CACHE_TTL_SECONDS: "300"
+      STRUCTURING_DEVICE: cpu
+      # = resources.requests.cpu; without it torch starts as many threads as the node has cores.
+      STRUCTURING_TORCH_THREADS: "1"
+      # Each job holds one of the 40 threadpool threads for its whole LLM call; above 40 at once the job GET and
+      # the hand-off time out while /health stays 200 (load test 2026-10-30). 30 leaves threads for requests.
+      PIPELINE_MAX_CONCURRENT_JOBS: "30"
       PIPELINE_DRAIN_TIMEOUT_SECONDS: "120"
       PIPELINE_OUTBOX: "true"
     replicas: 1
@@ -328,13 +344,16 @@ services:
         maxSurge: 1
         maxUnavailable: 0
     terminationGracePeriodSeconds: 150
-    startupFailureThreshold: 15
+    # Loads E5 + segment model (~1.1 GB) from the image, as guardrails. 300 x 2 s = 10 minutes.
+    startupFailureThreshold: 300
+    # E5 + segment model ~1.1 GB loaded; one cut (E5 16 pages at a time) peaks ~1.8 GB, as guardrails (idle on the
+    # VM: 1.46 GB). A job waiting for the LLM only holds its OCR text.
     resources:
       requests:
-        cpu: 250m
-        memory: 512Mi
+        cpu: "1"
+        memory: 3Gi
       limits:
-        memory: 512Mi
+        memory: 3Gi
 
   # Stage 4 (last): field scores -> confidence, the answer object.
   scoring:
