@@ -322,8 +322,9 @@ services:
       EXTRACTION_ATTEMPTS: "3"
       STRUCTURING_SEGMENT_WORKERS: "4"
       # Prompts (nilam_system_prompt) are read per job through a cache (CACHE_URL, from the Secret above); a
-      # changed prompt takes effect after the TTL without a restart.
-      PROMPT_CACHE_TTL_SECONDS: "300"
+      # changed prompt takes effect after the TTL without a restart. 30 days, the same as the dev VM (Davin
+      # 2026-11-02): a prompt changed sooner takes effect once its key (STRUCTURING_PROMPT_REDIS_KEY) is deleted.
+      PROMPT_CACHE_TTL_SECONDS: "2592000"
       STRUCTURING_DEVICE: cpu
       # = resources.requests.cpu; without it torch starts as many threads as the node has cores.
       STRUCTURING_TORCH_THREADS: "1"
