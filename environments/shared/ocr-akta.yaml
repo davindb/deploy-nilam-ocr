@@ -64,12 +64,18 @@ services:
       # is not reachable from the pods). NOT PP-OCRv6 (NPWP). End-to-end passed here on 2026-10-27.
       EXTRACTION_OCR_URL: http://ms-bribrain-nilam-ocr-paddle-ppstructure-v3-service.bribrain-ocr-nilam.svc.cluster.local/ocr
       EXTRACTION_OCR_HEADERS: '{"X-API-Key": "$(PADDLE_API_KEY)"}'
+      # Hand-off by reference (2026-11-02, as the dev VM): the three senders hand on the request_id only and the
+      # next stage reads the OCR / structuring result from the shared database (all five on nilam-ocr-akta-secrets'
+      # DATABASE_URL). The receivers read it by themselves whenever the body leaves it out.
+      PIPELINE_HANDOFF_BY_REFERENCE: "true"
   guardrails:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-guardrails
     strategy: *stopThenStart
     resources:
       limits:
         cpu: "1"
+    env:
+      PIPELINE_HANDOFF_BY_REFERENCE: "true"
   structuring:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-structuring
     strategy: *stopThenStart
@@ -93,6 +99,7 @@ services:
       LLM_AUTH_CLIENT_ID: "5d46930c-300f-434f-aa2a-059811315624"
       LLM_AUTH_BRIDGE_ROLE: "arn:aws:iam::061039788626:role/aw-alia-dev-irl-bridge-dai"
       LLM_AUTH_TARGET_ROLE: "arn:aws:iam::690081480327:role/aw-alia-dev-irl-bedrock-oidc"
+      PIPELINE_HANDOFF_BY_REFERENCE: "true"
   scoring:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-scoring
     strategy: *stopThenStart
