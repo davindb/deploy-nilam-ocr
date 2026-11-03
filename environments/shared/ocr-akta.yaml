@@ -33,11 +33,13 @@ orchestration:
   url: http://ms-bribrain-nilam-ocr-orchestrator.bribrain-ocr-nilam.svc.cluster.local
 
 # Object names = Bitbucket repo = Nexus image (deployment guide 4.5), like ms-bribrain-nilam-ocr-npwp-* next door.
-# HPA off and one replica each, like the other services of this namespace. Total requests 2.75 CPU / 11Gi
+# HPA off and one replica each, like the other services of this namespace. Total requests 3.5 CPU / 13.5Gi
 # (see charts/ocr-akta/values.yaml), within the namespace quota raised on 2026-10-23.
 # maxSurge 0: a rollout never reserves a pod above the share; the service is down while the new pod starts.
-# CPU limit = request here only: the namespace ResourceQuota (resource-bribrain-ocr-nilam) counts limits.cpu and
-# rejects any pod without one ("must specify limits.cpu"). The chart default stays without a CPU limit.
+# Limits above the requests (QoS Burstable, as NPWP and SK Kerja next door; Davin 2026-11-03): requests stay as
+# in charts/ocr-akta/values.yaml, limits 6 CPU / 18.5Gi in total (requests 3.5 / 13.5Gi). The namespace
+# ResourceQuota (resource-bribrain-ocr-nilam) counts limits.cpu and rejects any pod without one ("must specify
+# limits.cpu"): 57.65 -> 60.15 of 62 on 2026-11-03. The chart default stays without a CPU limit.
 services:
   orchestrator:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-orchestrator
@@ -48,13 +50,15 @@ services:
         maxUnavailable: 1
     resources:
       limits:
-        cpu: 250m
+        cpu: 500m
+        memory: 1536Mi
   extraction:
     fullnameOverride: ms-bribrain-nilam-ocr-akta-extraction
     strategy: *stopThenStart
     resources:
       limits:
-        cpu: "1"
+        cpu: "2"
+        memory: 8Gi
     # The API key of the PP-StructureV3 service of this namespace, from its own Secret (owned by the Paddle team).
     externalSecretEnv:
       - name: PADDLE_API_KEY
@@ -73,7 +77,8 @@ services:
     strategy: *stopThenStart
     resources:
       limits:
-        cpu: "1"
+        cpu: 1500m
+        memory: 4Gi
     env:
       PIPELINE_HANDOFF_BY_REFERENCE: "true"
   structuring:
@@ -81,7 +86,8 @@ services:
     strategy: *stopThenStart
     resources:
       limits:
-        cpu: "1"
+        cpu: 1500m
+        memory: 4Gi
     env:
       # FILL IN before the first deploy (structuring refuses to start without them): not secrets, the same values
       # as the services/structuring/.env that already runs on the VM. LLM_AUTH_CLIENT_SECRET is in the Secret.
@@ -105,4 +111,5 @@ services:
     strategy: *stopThenStart
     resources:
       limits:
-        cpu: 250m
+        cpu: 500m
+        memory: 1Gi
