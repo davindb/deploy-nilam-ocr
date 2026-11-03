@@ -214,7 +214,7 @@ URL antar-service (`<NAMA>_SERVICE_URL`) dihitung chart dari `fullnameOverride` 
 | scoring (skor field → confidence) | 8033 | `ocr-akta-scoring` | `ms-bribrain-nilam-ocr-akta-scoring` | - |
 
 Image: `$NEXUS_REGISTRY/$AKTA_NEXUS_PATH/ms-bribrain-nilam-ocr-akta-<service>:<tag>`, folder
-`bribrain/dev/nilam-ocr-akta` (bukan `NEXUS_PATH` milik orchestrator). Image di-push dari repo
+`bribrain/dev/nilam/nilam-ocr-akta` (bukan `NEXUS_PATH` milik orchestrator). Image di-push dari repo
 `nilam-ocr-akta`; kelimanya membawa tag SHA monorepo yang sama, jadi `./deploy.sh akta <tag>` cukup satu tag.
 Bobot model sudah ikut di image: pod tidak mengunduh apa pun dan tidak butuh identitas GCP.
 
